@@ -4,6 +4,9 @@ pipeline{
         registry = "iamsrt23/democicd"
         registryCredential = "dockerhub"
     }
+    parameters {
+        password(name: 'PASSWD', defaultValue: '', description: 'Please Enter you GitHub Password')
+    }
     stages{
         stage('Checkout'){
             steps{
@@ -63,7 +66,7 @@ pipeline{
 
                 script{
                     docker.withRegistry('',registryCredential){
-                        myImage = docker.build registry
+                        myImage = docker.build registry + ":$BUILD_NUMBER"
                         myImage.push()
                     }
                 }
@@ -75,7 +78,7 @@ pipeline{
         stage('Stage 7: Scan Image'){
             steps{
                 echo "Scanning Image for Vulnerabilities"
-                sh "trivy image --scanners vuln --offline-scan iamsrt23/democicd:latest > trivyresults.txt"
+                sh "trivy image --scanners vuln --offline-scan iamsrt23/democicd:$BUILD_NUMBER > trivyresults.txt"
 
                 
             }
@@ -83,10 +86,19 @@ pipeline{
         stage('Stage 8: SmokeTest'){
             steps{
                 echo "Smoke test the Image"
-                sh "docker run -d --name smokerun -p 8000:8000 iamsrt23/democicd"
+                sh "docker run -d --name smokerun -p 8000:8000 iamsrt23/democicd:$BUILD_NUMBER"
                 sh "sleep 90; ./check.sh"
                 sh "docker rm --force smokerun"
             }
+        stage('Stage 9:Trigger Deployment'){
+            steps{
+                script{
+                    TAG = "$BUILD_NUMBER"
+                    echo "Trigger CD Pipeline"
+                    build wait: false, job: 'demo-cd', parameters: [password(name: 'PASSWD', description: 'Please Enter you GitHub Password', value: params.PASSWD), string(name: 'IMAGETAG', value: TAG)]
+                }
+            }
+        }
         }
     }
 }
