@@ -10,6 +10,7 @@ pipeline{
     stages{
         stage('Checkout'){
             steps{
+                git branch: 'main', credentialsId: 'githubtoken', url: 'https://github.com/iamsrt23/DevSecOps-CICD-1.git'
 
             }
         }
